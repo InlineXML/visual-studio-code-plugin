@@ -2,17 +2,22 @@
   "name": "inlinexml",
   "displayName": "InlineXML",
   "description": "JSX-like syntax in C#",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "type": "module",
+  "publisher": "InlineXML",
   "engines": {
     "vscode": "^1.109.0"
   },
-  "categories": [
-    "Programming Languages"
-  ],
-  "main": "./extension.js",
+  "main": "./extension.cjs",
+  "scripts": {
+    "bundle": "node build.js",
+    "watch": "node build.js --watch",
+    "vscode:prepublish": "npm run bundle",
+    "vscode:build": "npx @vscode/vsce package"
+  },
   "activationEvents": [
-    "onLanguage:inlinexml"
+    "onLanguage:inlinexml",
+    "workspaceContains:**/*.xcs"
   ],
   "contributes": {
     "languages": [
@@ -45,9 +50,22 @@
   "dependencies": {
     "node-fetch": "^3.3.2",
     "unzipper": "^0.12.3",
+    "vscode-languageclient": "^9.0.1",
     "vscode-uri": "^3.1.0"
   },
   "devDependencies": {
-    "@types/node": "^25.2.2"
-  }
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.109.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3",
+    "vscode": "^1.1.37"
+  },
+  "files": [
+    "extension.cjs",
+    "extension.cjs.map",
+    "syntaxes",
+    "language-configuration.json",
+    "README.md",
+    "LICENSE.txt"
+  ]
 }

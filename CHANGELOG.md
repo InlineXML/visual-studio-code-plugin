@@ -6,4 +6,4 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-- Initial release
+Initial release - allows .XCS files to be picked up, and diagnostics and code suggestions to be given.

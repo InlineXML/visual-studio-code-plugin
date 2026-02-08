@@ -1,27 +1,40 @@
 import * as vscode from 'vscode';
-import { LanguageClient, RevealOutputChannelOn } from 'vscode-languageclient/node.js';
-import Executor from './executor.js';
+import { 
+    LanguageClient, 
+    LanguageClientOptions, 
+    ServerOptions, 
+    RevealOutputChannelOn 
+} from 'vscode-languageclient/node.js';
 import { PassThrough } from 'stream';
 import { URI } from 'vscode-uri';
+import Executor from './executor.js';
+import * as cp from 'child_process';
 
+/**
+ * Orchestrates the connection between VS Code and the C# Language Server.
+ * Handles the raw Stdio stream to allow for custom URI remapping.
+ */
 export class Server {
-    executor;
-    client;
-    outputChannel;
-    childProcess;
-    responseStream;
-    isReady = false;
+    private executor: Executor;
+    private client: LanguageClient | null = null;
+    private outputChannel: vscode.OutputChannel;
+    private childProcess?: cp.ChildProcess;
+    private responseStream?: PassThrough;
+    public isReady = false;
 
-    // ELI5: When false, the output channel will remain completely empty.
-    static DEBUG_MODE = false;
+    // ELI5: When false, the output channel will remain quiet.
+    public static DEBUG_MODE = false;
 
     constructor() {
         this.executor = new Executor();
-        this.client = null;
         this.outputChannel = vscode.window.createOutputChannel("InlineXML LSP");
     }
 
-    normalizeUri(rawUri) {
+    /**
+     * Ensures URIs coming back from the C# server match exactly what VS Code expects,
+     * specifically handling case-sensitivity and open document instances.
+     */
+    private normalizeUri(rawUri: string): string {
         try {
             const parsed = URI.parse(rawUri);
             const fsPath = parsed.fsPath.toLowerCase();
@@ -42,22 +55,19 @@ export class Server {
             this.outputChannel.appendLine("[SYSTEM] --- STARTING LSP ORCHESTRA ---");
         }
 
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || null;
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (!workspaceFolder) return;
 
         const details = this.executor.getExecutionDetails(workspaceFolder);
         
-        const serverOptions = async () => {
-            const cp = await import('child_process');
-            
+        const serverOptions: ServerOptions = async () => {
             this.childProcess = cp.spawn(details.command, details.args, { 
                 cwd: details.cwd, 
                 shell: true, 
                 stdio: ['pipe', 'pipe', 'pipe'] 
             });
 
-            this.childProcess.stderr.on('data', (data) => {
-                // Silenced stderr unless debugging
+            this.childProcess.stderr?.on('data', (data) => {
                 if (Server.DEBUG_MODE) {
                     this.outputChannel.appendLine(`[C# STDERR]: ${data.toString().trim()}`);
                 }
@@ -66,21 +76,13 @@ export class Server {
             const requestStream = new PassThrough();
             this.responseStream = new PassThrough();
 
-            requestStream.on('data', (data) => {
-                if (Server.DEBUG_MODE) {
-                    this.outputChannel.appendLine(`[TX -> C#]: LSP Request Sent (${data.length} bytes)`);
-                }
-            });
-
-            requestStream.pipe(this.childProcess.stdin);
+            // Pipe VS Code's requests into the C# process stdin
+            requestStream.pipe(this.childProcess.stdin!);
 
             let buffer = Buffer.alloc(0);
 
-            this.childProcess.stdout.on('data', (data) => {
-                if (Server.DEBUG_MODE) {
-                    this.outputChannel.appendLine(`[STDOUT RAW]: ${data.toString().trim()}`);
-                }
-                
+            // Listen to C# process stdout and parse LSP messages
+            this.childProcess.stdout!.on('data', (data: Buffer) => {
                 buffer = Buffer.concat([buffer, data]);
 
                 while (true) {
@@ -108,27 +110,17 @@ export class Server {
                     try {
                         let msg = JSON.parse(jsonPart);
                         
-                        if (Server.DEBUG_MODE) {
-                            const isNotification = msg.method !== undefined && msg.id === undefined;
-                            const isResponse = msg.id !== undefined;
-                            const typeLabel = isNotification ? 'Notification' : (isResponse ? 'Response' : 'Request');
-                            this.outputChannel.appendLine(`[LSP DETECTED]: ${typeLabel} | Method: ${msg.method || 'N/A'} (ID: ${msg.id ?? 'N/A'})`);
-                        }
-
+                        // Remap Diagnostics URIs (The "Broken Link" fix)
                         if (msg.method === 'textDocument/publishDiagnostics' && msg.params?.uri) {
-                            const oldUri = msg.params.uri;
-                            msg.params.uri = this.normalizeUri(oldUri);
-                            
-                            if (Server.DEBUG_MODE) {
-                                this.outputChannel.appendLine(`[DIAGNOSTICS] Remapped: ${oldUri} -> ${msg.params.uri}`);
-                            }
+                            msg.params.uri = this.normalizeUri(msg.params.uri);
                         }
 
                         const body = JSON.stringify(msg);
                         const header = `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n`;
                         
-                        this.responseStream.write(header + body);
-                    } catch (e) {
+                        // Push the (potentially modified) message back to VS Code
+                        this.responseStream?.write(header + body);
+                    } catch (e: any) {
                         if (Server.DEBUG_MODE) {
                             this.outputChannel.appendLine(`[JS ERROR] JSON Parse failure: ${e.message}`);
                         }
@@ -141,7 +133,7 @@ export class Server {
             return { writer: requestStream, reader: this.responseStream };
         };
 
-        this.client = new LanguageClient('inlinexmlLSP', 'InlineXML', serverOptions, {
+        const clientOptions: LanguageClientOptions = {
             documentSelector: [
                 { scheme: 'file', language: 'inlinexml' },
                 { scheme: 'file', language: 'csharp' },
@@ -150,9 +142,22 @@ export class Server {
             diagnosticCollectionName: 'inlinexml',
             revealOutputChannelOn: RevealOutputChannelOn.Never,
             outputChannel: this.outputChannel
-        });
+        };
+
+        this.client = new LanguageClient('inlinexmlLSP', 'InlineXML', serverOptions, clientOptions);
 
         await this.client.start();
         this.isReady = true;
+    }
+
+    async disconnect() {
+        this.isReady = false;
+        if (this.client) {
+            await this.client.stop();
+            this.client = null;
+        }
+        if (this.childProcess) {
+            this.childProcess.kill();
+        }
     }
 }

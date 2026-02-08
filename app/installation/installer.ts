@@ -1,10 +1,11 @@
-// ./app/installer.js
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import fetch from 'node-fetch';
 import * as unzipper from 'unzipper';
 import * as child_process from 'child_process';
+
+console.log('[installer.js] Loading...');
 
 const Binaries = {
     macos: {
@@ -36,26 +37,37 @@ export const getBinaryPath = () => {
 
 export const needsInstall = () => {
     const binPath = getBinaryPath();
-    return !fs.existsSync(binPath);
+    const exists = fs.existsSync(binPath);
+    console.log(`[INSTALLER] Binary path: ${binPath}`);
+    console.log(`[INSTALLER] Binary exists: ${exists}`);
+    return !exists;
 }
 
 export const install = async () => {
     const platform = getPlatform();
     const { zip } = Binaries[platform];
 
+    console.log(`[INSTALLER] Platform detected: ${platform}`);
+    console.log(`[INSTALLER] Install directory: ${INSTALL_DIR}`);
+
     // Ensure clean start
     if (fs.existsSync(INSTALL_DIR)) {
+        console.log(`[INSTALLER] Removing existing directory: ${INSTALL_DIR}`);
         fs.rmSync(INSTALL_DIR, { recursive: true, force: true });
     }
     fs.mkdirSync(INSTALL_DIR, { recursive: true });
 
-    console.log(`Downloading all components from ${zip}...`);
+    console.log(`[INSTALLER] Downloading from ${zip}...`);
     const response = await fetch(zip);
-    if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+    if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+    }
     
+    console.log(`[INSTALLER] Download successful, extracting...`);
     const zipBuffer = Buffer.from(await response.arrayBuffer());
     const directory = await unzipper.Open.buffer(zipBuffer);
     
+    let fileCount = 0;
     // ELI5: We walk through every single file in the zip (EXE, DLLs, JSON configs)
     // and save them all into the install directory.
     for (const file of directory.files) {
@@ -72,14 +84,17 @@ export const install = async () => {
         // Write the file. We use 0o755 for everything just to be safe, 
         // ensuring the main binary is executable on Mac/Linux.
         fs.writeFileSync(filePath, content, { mode: 0o755 });
+        fileCount++;
+        console.log(`[INSTALLER] Extracted: ${fileName}`);
     }
 
     const finalBin = getBinaryPath();
     if (!fs.existsSync(finalBin)) {
-        throw new Error(`Installation failed: Executable not found in the extracted files.`);
+        throw new Error(`Installation failed: Executable not found in the extracted files. Extracted ${fileCount} files total.`);
     }
 
-    console.log(`Installed all components to ${INSTALL_DIR}`);
+    console.log(`[INSTALLER] Installed ${fileCount} files to ${INSTALL_DIR}`);
+    console.log(`[INSTALLER] Final binary: ${finalBin}`);
     return finalBin;
 }
 

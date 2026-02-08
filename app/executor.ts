@@ -1,10 +1,17 @@
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-// ELI5: We import getBinaryPath so we don't have to guess where the file is.
-// The installer knows exactly where it put the binary in the user's home folder.
-import { getBinaryPath } from './installer.js'; 
+import { dirname } from 'path';
+import { getBinaryPath } from './installation/installer';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+console.log('[executor.ts] Loading...');
+
+/**
+ * Interface representing the command line details needed 
+ * to spawn the Language Server process.
+ */
+export interface ExecutionDetails {
+    command: string;
+    args: string[];
+    cwd: string;
+}
 
 /**
  * Manages the execution context for the InlineXML Language Server.
@@ -14,20 +21,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default class Executor {
     /**
      * Set to true to use local source code via 'dotnet run'.
-     * Set to false to use the optimized binary downloaded by installer.js.
+     * Set to false to use the optimized binary downloaded by installer.ts.
      */
-    static IS_DEBUG = false; 
+    public static IS_DEBUG = false; 
     
     /** Local path used only when IS_DEBUG is true */
-    static LOCAL_REPO_PATH = 'C:/Users/John/Desktop/Projects/LanguageServer/InlineXML/InlineXML';
-    static PROJECT_FILE = 'InlineXML.csproj';
+    private static readonly LOCAL_REPO_PATH = 'C:/Users/John/Desktop/Projects/LanguageServer/InlineXML/InlineXML';
+    private static readonly PROJECT_FILE = 'InlineXML.csproj';
 
     /**
      * Generates the command and arguments required to start the Language Server.
-     * @param {string} workspaceFolder - The root path of the project being edited.
-     * @returns {Object} An object containing the command, args, and cwd.
+     * @param workspaceFolder - The root path of the project being edited.
+     * @returns An object containing the command, args, and cwd.
      */
-    getExecutionDetails(workspaceFolder) {
+    public getExecutionDetails(workspaceFolder: string): ExecutionDetails {
         // Normalize the workspace path to use forward slashes for cross-platform consistency
         const targetWorkspace = workspaceFolder.replace(/\\/g, '/');
 
@@ -53,7 +60,8 @@ export default class Executor {
         // --- PRODUCTION MODE (Downloaded Binary) ---
         // This uses the standalone executable (InlineXML or InlineXML.exe).
         // It's much faster because it doesn't require the .NET SDK or a 'dotnet build' step.
-        const downloadedBinPath = getBinaryPath().replace(/\\/g, '/');
+        const downloadedBinPath = getBinaryPath();
+        const downloadedBinDir = dirname(downloadedBinPath);
         
         return {
             command: downloadedBinPath,
@@ -63,7 +71,7 @@ export default class Executor {
             ],
             // We set the current working directory to the binary's folder
             // to ensure it can load any companion .dll or .json files.
-            cwd: dirname(downloadedBinPath)
+            cwd: downloadedBinDir
         };
     }
 }
