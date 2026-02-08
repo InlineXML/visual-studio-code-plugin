@@ -1,0 +1,106 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "InlineXML",
+    "scopeName": "source.inlinexml",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#xml-tag"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#interpolation"
+        }
+    ],
+    "repository": {
+        "xml-tag": {
+            "patterns": [
+                {
+                    "name": "meta.tag.xml.inlinexml",
+                    "begin": "(</?)([a-zA-Z.][\\w.-]*)",
+                    "beginCaptures": {
+                        "1": { "name": "punctuation.definition.tag.begin.xml" },
+                        "2": { "name": "entity.name.tag.xml" }
+                    },
+                    "end": "(/?>)",
+                    "endCaptures": {
+                        "0": { "name": "punctuation.definition.tag.end.xml" }
+                    },
+                    "patterns": [
+                        { "include": "#attributes" }
+                    ]
+                }
+            ]
+        },
+        "attributes": {
+            "patterns": [
+                {
+                    "name": "entity.other.attribute-name.xml",
+                    "match": "\\b([a-zA-Z\\-:]+)\\b"
+                },
+                {
+                    "begin": "=",
+                    "beginCaptures": {
+                        "0": { "name": "punctuation.separator.key-value.xml" }
+                    },
+                    "end": "(?=[\\s/>])",
+                    "patterns": [
+                        { "include": "#strings" },
+                        { "include": "#interpolation" }
+                    ]
+                }
+            ]
+        },
+        "interpolation": {
+            "name": "meta.interpolation.inlinexml",
+            "begin": "\\{",
+            "beginCaptures": {
+                "0": { "name": "punctuation.definition.interpolation.begin.csharp" }
+            },
+            "end": "\\}",
+            "endCaptures": {
+                "0": { "name": "punctuation.definition.interpolation.end.csharp" }
+            },
+            "patterns": [
+                { "include": "$self" }
+            ]
+        },
+        "keywords": {
+            "patterns": [{
+                "name": "keyword.control.csharp",
+                "match": "\\b(if|else|while|for|foreach|return|new|var|class|namespace|using|public|private|protected|internal|static|async|await|get|set|partial|yield|break|continue)\\b"
+            }]
+        },
+        "strings": {
+            "name": "string.quoted.double.csharp",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.csharp",
+                    "match": "\\\\."
+                }
+            ]
+        },
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.csharp",
+                    "match": "//.*"
+                },
+                {
+                    "name": "comment.block.csharp",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "inlinexml",
+  "displayName": "InlineXML",
+  "description": "JSX-like syntax in C#",
+  "version": "0.0.1",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:inlinexml"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "inlinexml",
+        "aliases": [
+          "InlineXML",
+          "C# Inline XML"
+        ],
+        "extensions": [
+          ".xcs"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "inlinexml",
+        "scopeName": "source.inlinexml",
+        "path": "./syntaxes/csharp.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "inlinexml.restartLSP",
+        "title": "InlineXML: Restart Language Server"
+      }
+    ]
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "unzipper": "^0.12.3",
+    "vscode-uri": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2"
+  }
+}
