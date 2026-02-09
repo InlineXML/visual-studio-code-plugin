@@ -12,12 +12,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const logger = vscode.window.createOutputChannel("InlineXML Boot");
     logger.show(true);
-    logger.appendLine('🚀 [System] Activation sequence initiated...');
+    logger.appendLine('Starting InlineXML extension...');
 
     try {
         if (needsInstall()) {
             await install();
+            logger.appendLine('Downloaded inline XML binary.');
         }
+
+        logger.appendLine('Starting LSP server...');
 
         lspServer = new Server();
         await lspServer.listen();

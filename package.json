@@ -15,6 +15,9 @@
     "vscode:prepublish": "npm run bundle",
     "vscode:build": "npx @vscode/vsce package"
   },
+  "repository": {
+    "url": "https://github.com/InlineXML/visual-studio-code-plugin"
+  },
   "activationEvents": [
     "onLanguage:inlinexml",
     "workspaceContains:**/*.xcs"
@@ -48,6 +51,7 @@
     ]
   },
   "dependencies": {
+    "@types/unzipper": "^0.10.11",
     "node-fetch": "^3.3.2",
     "unzipper": "^0.12.3",
     "vscode-languageclient": "^9.0.1",
