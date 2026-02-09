@@ -2,7 +2,7 @@
   "name": "inlinexml",
   "displayName": "InlineXML",
   "description": "JSX-like syntax in C#",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "publisher": "InlineXML",
   "engines": {
